@@ -18,6 +18,8 @@ class total_model:
     def train(self):
         if self.rl_algo == 'SAC':
             model = SAC('MlpPolicy', self.env, verbose=1, device='cpu', tensorboard_log=log_dir, learning_rate=0.01)
+        elif self.rl_algo == 'DDPG':
+            model = DDPG('MlpPolicy', self.env, verbose=1, device='cpu', tensorboard_log=log_dir, learning_rate=0.01)
         elif self.rl_algo == 'TD3':
             model = TD3('MlpPolicy', self.env, verbose=1, device='cpu', tensorboard_log=log_dir)
         elif self.rl_algo == 'A2C':
@@ -41,6 +43,8 @@ class total_model:
     def test(self,infer_model):
         if self.rl_algo == 'SAC':
             model = SAC.load(infer_model, env=self.env)
+        elif self.rl_algo == 'DDPG':
+            model = DDPG.load(infer_model, env=self.env)
         elif self.rl_algo == 'TD3':
             model = TD3.load(infer_model, env=self.env)
         elif self.rl_algo == 'A2C':
