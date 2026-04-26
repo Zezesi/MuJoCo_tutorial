@@ -44,3 +44,8 @@ git clone https://github.com/Zezesi/MuJoCo_tutorial.git
 mjpython x2.py
 ```
 **Note:** You could also download other models from MuJoCo model gallery and implement your own control algorithms.
+
+---
+### Screenshot of the project
+<img width="1512" height="982" alt="Screenshot 2026-04-26 at 14 32 38" src="https://github.com/user-attachments/assets/5f1f73d1-b3f7-46b3-bf64-923a98aeaf63" />
+
