@@ -41,6 +41,6 @@ git clone https://github.com/Zezesi/MuJoCo_tutorial.git
 
 ### 8️⃣ Run the script
 ```sh
-mjpython main.py
+mjpython x2.py
 ```
-**Note:** You can download other models from MuJoCo model gallery and implement your own control algorithms.
+**Note:** You could also download other models from MuJoCo model gallery and implement your own control algorithms.
