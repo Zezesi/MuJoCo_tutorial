@@ -1,2 +1,46 @@
 # MuJoCo_tutorial
-robotics, drone, control, 3d simulations
+This tutorial will guide you to set up MuJoCo and run your python projects on your Macbook(Mine is M3).
+
+---
+
+### 1️⃣ Create a directory for your python project
+```sh
+mkdir MuJoCo_py_project
+```
+
+### 2️⃣ Change to the diectory
+```sh
+cd MuJoCo_py_project
+```
+
+### 3️⃣ Install your python package
+```sh
+python3 -m pip install --user -U pip
+```
+
+### 4️⃣ Create a virtual environment
+```sh
+python3.13 -m venv mujoco_env
+```
+**Note:** Remember to use the right python version to create the virtual environment.
+
+### 5️⃣ Activate the virtual environment
+```sh
+source mujoco_env/bin/activate
+```
+
+### 6️⃣ Install the required modules
+```sh
+pip install mujoco numpy simple_pid
+```
+
+### 7️⃣ git clone this repository
+```sh
+git clone https://github.com/Zezesi/MuJoCo_tutorial.git
+```
+
+### 8️⃣ Run the script
+```sh
+mjpython main.py
+```
+**Note:** You can download other models from MuJoCo model gallery and implement your own control algorithms.
