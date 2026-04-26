@@ -45,7 +45,14 @@ mjpython x2.py
 ```
 **Note:** You could also download other models from MuJoCo model gallery and implement your own control algorithms.
 
----
 ### Screenshot of the project
 <img width="1512" height="982" alt="Screenshot 2026-04-26 at 14 32 38" src="https://github.com/user-attachments/assets/5f1f73d1-b3f7-46b3-bf64-923a98aeaf63" />
+
+---
+# MuJoCo Gymnasium interface
+### 1️⃣ Humanoid
+<img width="1512" height="982" alt="Screenshot 2026-04-27 at 00 55 43" src="https://github.com/user-attachments/assets/c95231f7-cdd1-4552-95ab-572044dcb369" />
+
+### 2️⃣ Reacher
+<img width="1512" height="982" alt="Screenshot 2026-04-27 at 00 56 58" src="https://github.com/user-attachments/assets/ef7c8db7-731f-4656-916e-4b77f323ff91" />
 
