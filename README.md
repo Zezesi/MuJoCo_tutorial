@@ -55,4 +55,7 @@ mjpython x2.py
 
 ### 2️⃣ Reacher
 <img width="1512" height="982" alt="Screenshot 2026-04-27 at 00 56 58" src="https://github.com/user-attachments/assets/ef7c8db7-731f-4656-916e-4b77f323ff91" />
+---
+# To Do
+Implement control algorithms(MPC, RL) on more complex models.
 
