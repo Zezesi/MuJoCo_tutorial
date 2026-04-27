@@ -1,4 +1,4 @@
-# MuJoCo_tutorial
+# MuJoCo Tutorial
 This tutorial will guide you to set up MuJoCo and run your python projects on your Macbook(Mine is M3).
 
 ---
