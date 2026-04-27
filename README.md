@@ -49,7 +49,7 @@ mjpython x2.py
 <img width="1512" height="982" alt="Screenshot 2026-04-26 at 14 32 38" src="https://github.com/user-attachments/assets/5f1f73d1-b3f7-46b3-bf64-923a98aeaf63" />
 
 ---
-# MuJoCo Gymnasium
+# MuJoCo Gymnasium API
 ### 1️⃣ Humanoid
 <img width="1512" height="982" alt="Screenshot 2026-04-27 at 00 55 43" src="https://github.com/user-attachments/assets/c95231f7-cdd1-4552-95ab-572044dcb369" />
 
