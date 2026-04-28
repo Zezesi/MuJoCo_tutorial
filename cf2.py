@@ -17,19 +17,17 @@ class PIDController:
     def __init__(self, targetPos) -> None:
         self.targetPos = targetPos  # desired position
 
-        self.pid_thrust = PID(0.11, 0.002, 0.3, setpoint=targetPos[2],output_limits=(-0.26487, 0.08513))
-        self.pid_roll = PID(-0.11, -0.002, -0.3, setpoint=targetPos[1], output_limits=(-0.01, 0.01))
-        self.pid_pitch = PID(0.11, 0.002, 0.3, setpoint=targetPos[0], output_limits=(-0.01, 0.01))
-        self.pid_yaw = PID(0.11, 0.002, 0.3, setpoint=0.0, output_limits=(-np.pi, np.pi))
+        self.pid_thrust = PID(0.5, 0.002, 0.9, setpoint=targetPos[2],output_limits=(-0.26487, 0.08513))
+        self.pid_roll = PID(-0.57, -0.007, -3.2, setpoint=targetPos[1], output_limits=(-0.01, 0.01))
+        self.pid_pitch = PID(0.57, 0.007, 3.2, setpoint=targetPos[0], output_limits=(-0.01, 0.01))
 
 
-    def update_ctrl(self, curPos: np.array,curYaw):
+    def update_ctrl(self, curPos: np.array):
 
         thrust = self.pid_thrust(curPos[2])+0.26487 # desired thrust
         roll = self.pid_roll(curPos[1])  # desired roll angle
         pitch = self.pid_pitch(curPos[0])  # desired pitch angle
-        yaw = self.pid_yaw(curYaw)  # desired yaw angle
-        return thrust,roll,pitch,yaw
+        return thrust,roll,pitch
 
     def update_targetPos(self, targetPos):  # update the desired position for the next step
 
@@ -63,9 +61,9 @@ class quadcopter:
         self.controller = PIDController(targetPos=targetPos)
         self.sensor = IMUSensor(self.data)
 
-        self.pid_roll_m = PID(0.11, 0.002, 0.3, setpoint=0, output_limits=(-1.0, 1.0))
-        self.pid_pitch_m = PID(0.11, 0.002, 0.3, setpoint=0, output_limits=(-1.0, 1.0))
-        self.pid_yaw_m = PID(0.11, 0.002, 0.3, setpoint=0, output_limits=(-1.0, 1.0))
+        self.pid_roll_m = PID(10.0, 0.01, 25.0, setpoint=0, output_limits=(-1.0, 1.0))
+        self.pid_pitch_m = PID(10.0, 0.01, 25.0, setpoint=0, output_limits=(-1.0, 1.0))
+        self.pid_yaw_m = PID(10.0, 0.01, 25.0, setpoint=0.0, output_limits=(-1.0, 1.0))
 
 
     def update_motor_control(self):
@@ -73,11 +71,11 @@ class quadcopter:
         curPos = self.sensor.get_position()[:3]  # current linear position(x,y,z) in world frame
         curAng = self.sensor.get_position()[3:]  # current angular position(quaternion(1,i,j,k)
         curRoll, curPitch, curYaw = quaternion_to_euler(curAng[0], curAng[1], curAng[2], curAng[3])
-        desThrust,desRoll,desPitch,desYaw=self.controller.update_ctrl(curPos,curYaw)
+        desThrust,desRoll,desPitch=self.controller.update_ctrl(curPos)
 
         self.pid_roll_m.setpoint=desRoll
         self.pid_pitch_m.setpoint=desPitch
-        self.pid_yaw_m.setpoint=desYaw
+        self.pid_yaw_m.setpoint=0.0
 
         thrust=desThrust
         rollTorque=self.pid_roll_m(curRoll) # desired roll torque
@@ -85,7 +83,6 @@ class quadcopter:
         yawTorque=self.pid_yaw_m(curYaw) # desired yaw torque
 
         self.data.ctrl[:4] = [thrust,-rollTorque,-pitchToruqe,-yawTorque]
-        print(curPos)
 
 
 
@@ -101,18 +98,18 @@ if __name__ == "__main__":
         start = time.time()
         step = 1
 
-        while viewer.is_running() and time.time() - start < 80:
+        while viewer.is_running() and time.time() - start < 200:
             step_start = time.time()
 
             # flight program
             if time.time() - start > 3:
-                quad.controller.update_targetPos(np.array([2.0, 1.0, 2.0]))
+                quad.controller.update_targetPos(np.array([1.0, 0.0, 5.0]))
 
             if time.time() - start > 12:
-                quad.controller.update_targetPos(np.array([2.0, 1.0, 5.0]))
+                quad.controller.update_targetPos(np.array([5.0, 5.0, 2.0]))
 
             if time.time() - start > 24:
-                quad.controller.update_targetPos(np.array([2.0, 1.0, 10.0]))
+                quad.controller.update_targetPos(np.array([0.0, 0.0, 1.0]))
 
             quad.update_motor_control()
 

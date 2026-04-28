@@ -25,7 +25,7 @@ class PIDController:
                          output_limits=(-vel_limit, vel_limit))
 
     def __call__(self, curPos: np.array):
-        desVel = np.array([0, 0, 0])
+        desVel = np.array([0.0, 0.0, 0.0])
         # curPos is the current position
         desVel[0] = self.pid_x(curPos[0])  # desired velocity(action) in x direction in world frame
         desVel[1] = self.pid_y(curPos[1])  # desired velocity(action) in y direction in world frame
@@ -57,7 +57,7 @@ class IMUSensor:
 
 
 class quadcopter:
-    def __init__(self, targetPos=np.array((0, 0, 0))):
+    def __init__(self, targetPos=np.array((0.0, 0.0, 0.0))):
         self.model = mujoco.MjModel.from_xml_path('skydio_x2/scene.xml')
         self.data = mujoco.MjData(self.model)
 
@@ -65,9 +65,9 @@ class quadcopter:
         self.sensor = IMUSensor(self.data)
 
         # angular displacement control to stabalize inflight dynamics
-        self.pid_roll = PID(2.68, 0.56, 1.25, setpoint=0, output_limits=(-1, 1))
-        self.pid_pitch = PID(2.68, 0.56, 1.25, setpoint=0, output_limits=(-1, 1))
-        self.pid_yaw = PID(0.54, 0.001, 5.36, setpoint=0, output_limits=(-np.pi, np.pi))
+        self.pid_roll = PID(2.68, 0.56, 1.25, setpoint=0, output_limits=(-1.0, 1.0))
+        self.pid_pitch = PID(2.68, 0.56, 1.25, setpoint=0, output_limits=(-1.0, 1.0))
+        self.pid_yaw = PID(0.54, 0.001, 5.36, setpoint=0, output_limits=(-1.0, 1.0))
 
         # velocity control to reach the desired position
         self.pid_v_x = PID(0.11, 0.002, 0.03, setpoint=0,
@@ -122,7 +122,7 @@ class quadcopter:
 
 
 if __name__ == "__main__":
-    quad = quadcopter(targetPos=np.array([0, 0, 1]))  # target is the desired position in world(fixed) frame
+    quad = quadcopter(targetPos=np.array([0.0, 0.0, 1.0]))  # target is the desired position in world(fixed) frame
 
     with mujoco.viewer.launch_passive(quad.model, quad.data) as viewer:
         viewer.cam.fixedcamid = mujoco.mj_name2id(quad.model, mujoco.mjtObj.mjOBJ_CAMERA, "track")
@@ -136,13 +136,13 @@ if __name__ == "__main__":
 
             # flight program
             if time.time() - start > 3:
-                quad.controller.update_targetPos(np.array([0, 0, 2]))
+                quad.controller.update_targetPos(np.array([0.0, 0.0, 2.0]))
 
             if time.time() - start > 12:
-                quad.controller.update_targetPos(np.array([10, 10, 5]))
+                quad.controller.update_targetPos(np.array([10.0, 10.0, 5.0]))
 
             if time.time() - start > 24:
-                quad.controller.update_targetPos(np.array([-20, -10, 3]))
+                quad.controller.update_targetPos(np.array([-20.0, -10.0, 3.0]))
 
             quad.update_angle_conrol()
             quad.update_motor_control()
