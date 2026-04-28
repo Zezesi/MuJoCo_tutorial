@@ -1,4 +1,5 @@
 import gymnasium as gym
+import gymnasium_robotics
 from stable_baselines3 import DDPG, DQN, PPO, SAC, TD3, A2C
 import os
 import argparse
@@ -17,7 +18,7 @@ class total_model:
 
     def train(self):
         if self.rl_algo == 'SAC':
-            model = SAC('MlpPolicy', self.env, verbose=1, device='cpu', tensorboard_log=log_dir, learning_rate=0.01)
+            model = SAC('MlpPolicy', self.env, verbose=1, device='cpu', tensorboard_log=log_dir, learning_rate=0.01) # verbose=1: Enables info-level logging, which prints basic training information to the console
         elif self.rl_algo == 'DDPG':
             model = DDPG('MlpPolicy', self.env, verbose=1, device='cpu', tensorboard_log=log_dir, learning_rate=0.01)
         elif self.rl_algo == 'TD3':
@@ -32,13 +33,16 @@ class total_model:
             print('Algorithm not supported!')
             return
 
-        TIMESTEPS = 25000
+        TIMESTEPS = 10000
         iters = 0
+        TOTALSTEPS=1000000
         while True:
-            iters += 1
-
-            model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False)
-            model.save(f"{model_dir}/{self.rl_algo}_{TIMESTEPS * iters}")
+            if TOTALSTEPS > (iters + 1) * TIMESTEPS or TOTALSTEPS == (iters + 1) * TIMESTEPS:
+                iters += 1
+                model.learn(total_timesteps=TIMESTEPS, reset_num_timesteps=False) # reset_num_timesteps=False, your TensorBoard logs will show a smooth, continuous line from 0 all the way to TOTALSTEPS.
+                model.save(f"{model_dir}/{self.rl_algo}_{TIMESTEPS * iters}")
+            else:
+                break
 
     def test(self,infer_model):
         if self.rl_algo == 'SAC':
@@ -81,6 +85,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--train', action='store_true')
     parser.add_argument('-s', '--test', metavar='path_to_model')
     args = parser.parse_args()
+    #gym.register_envs(gymnasium_robotics)
     if args.train:
        gymenv = gym.make(args.gymenv, render_mode='human')
 
