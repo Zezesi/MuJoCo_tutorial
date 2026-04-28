@@ -41,7 +41,7 @@ git clone https://github.com/Zezesi/MuJoCo_tutorial.git
 
 ### 8️⃣ Run the script
 ```sh
-mjpython x2.py
+mjpython x2.py(or cf2.py)
 ```
 **Note:** You could also download other models from MuJoCo model gallery or create your own xml model and implement your own control algorithms.
 
