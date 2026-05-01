@@ -15,7 +15,7 @@ import mujoco
 import mujoco.viewer
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+Ts=0.05
 class panda_env:
     def __init__(self, action_space_size=8, state_space_size=15, num_of_attack_points=1):
         self.action_space_size = action_space_size
@@ -27,7 +27,7 @@ class panda_env:
 
     def update_attack_point(self):
         x = np.random.uniform(low=-0.2, high=0.2)
-        y = np.random.uniform(low=0.2, high=0.5)
+        y = np.random.uniform(low=0.3, high=0.5)
         z = np.random.uniform(low=0.2, high=0.6)
         self.attack_point = np.array([x, y, z])
 
@@ -156,26 +156,25 @@ def sac(
         env_env,
         log_std_low=-20,
         log_std_high=2,
-        state_space_size=15,
-        action_space_size=8,
         num_of_episodes=1,
         max_episode_steps=5000,
         name="sac",
+        hidden_size=1024
 ):
     agent = SACAgent(log_std_low=log_std_low,
                      log_std_high=log_std_high,
-                     state_space_size=state_space_size,
-                     action_space_size=action_space_size,
+                     state_space_size=eval_env.state_space_size,
+                     action_space_size=eval_env.action_space_size,
                      actor_net_cls=nets.StochasticActor,
                      critic_net_cls=nets.BigCritic,
-                     hidden_size=1024)
+                     hidden_size=hidden_size)
 
 
 
     ###########
     ## SETUP ##
     ###########
-    agent.load(path='')
+    agent.load(path='train/sac_199')
     agent.to(device)
     agent.eval()
 
@@ -231,7 +230,7 @@ def sac(
                     savemat(path2, df2)
                     episode += 1
 
-                time_until_next_step = eval_env.model.opt.timestep - (time.time() - step_start)
+                time_until_next_step = max(Ts,eval_env.model.opt.timestep) - (time.time() - step_start)
                 if time_until_next_step > 0:
                     time.sleep(time_until_next_step)
         if episode < num_of_episodes:
@@ -243,7 +242,7 @@ def sac(
 
 if __name__ == "__main__":
     max_episode_steps = 1000
-    num_of_episodes = 1
+    num_of_episodes = 10
     eval_env = panda_env(action_space_size=8, state_space_size=15, num_of_attack_points=1)
 
     with mujoco.viewer.launch_passive(eval_env.model, eval_env.data) as viewer:
@@ -253,9 +252,8 @@ if __name__ == "__main__":
             eval_env,
             log_std_low=-20,
             log_std_high=2,
-            state_space_size=15,
-            action_space_size=8,
             num_of_episodes=1,
             max_episode_steps=5000,
             name="sac",
+            hidden_size=1024
         )

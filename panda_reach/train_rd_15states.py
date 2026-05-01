@@ -21,6 +21,7 @@ import mujoco
 import mujoco.viewer
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+Ts=0.04
 
 
 class panda_env:
@@ -33,7 +34,7 @@ class panda_env:
         self.data = mujoco.MjData(self.model)
     def update_attack_point(self):
         x=np.random.uniform(low=-0.2, high=0.2)
-        y=np.random.uniform(low=0.2, high=0.5)
+        y=np.random.uniform(low=0.3, high=0.5)
         z=np.random.uniform(low=0.2, high=0.6)
         self.attack_point=np.array([x,y,z])
 
@@ -218,8 +219,6 @@ def sac(
     train_env,
     log_std_low=-20,
     log_std_high=2,
-    state_space_size=15,
-    action_space_size=8,
     num_of_episodes=1000,
     max_episode_steps=500,
     batch_size=64,
@@ -236,18 +235,19 @@ def sac(
     gradient_updates_per_episode=10,
     actor_delay=1,
     target_delay=2,
+    hidden_size=1024,
     **kwargs,
 ):
 
     agent = SACAgent(log_std_low=log_std_low,
                      log_std_high=log_std_high,
-                     state_space_size=state_space_size,
-                     action_space_size=action_space_size,
+                     state_space_size=train_env.state_space_size,
+                     action_space_size=train_env.action_space_size,
                      actor_net_cls=nets.StochasticActor,
                      critic_net_cls=nets.BigCritic,
-                     hidden_size=1024)
+                     hidden_size=hidden_size)
 
-    target_entropy = -action_space_size
+    target_entropy = -train_env.action_space_size
 
     actor_lr=init_actor_lr
     critic_lr =init_critic_lr
@@ -339,6 +339,7 @@ def sac(
                for i_ in range(gradient_updates_per_episode):
 
                    learn_standard_rd(
+                      save_dir=save_dir,
                       ReplayBuffer=ReplayBuffer,
                       target_agent=target_agent,
                       agent=agent,
@@ -352,8 +353,7 @@ def sac(
                       critic_clip=critic_clip,
                       actor_clip=actor_clip,
                       update_policy=i_ % actor_delay == 0,
-                      save_dir=save_dir,
-                  )
+                     )
                    if i_%target_delay==0:
                       utils.soft_update(target_agent.critic1, agent.critic1, tau)
                       utils.soft_update(target_agent.critic2, agent.critic2, tau)
@@ -369,7 +369,7 @@ def sac(
                 savemat(path2, df2)
                 episode += 1
                 agent.save(save_dir)
-            time_until_next_step = train_env.model.opt.timestep - (time.time() - step_start)
+            time_until_next_step = max(Ts,train_env.model.opt.timestep) - (time.time() - step_start)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
         if episode < num_of_episodes:
@@ -573,16 +573,15 @@ if __name__ == "__main__":
 
     with mujoco.viewer.launch_passive(train_env.model,train_env.data) as viewer:
         time.sleep(2)  # wait 2 seconds
+        max_episode_steps=500
 
         sac(
             ReplayBuffer,
             train_env,
             log_std_low=-20,
             log_std_high=2,
-            state_space_size=15,
-            action_space_size=8,
             num_of_episodes=1000,
-            max_episode_steps=1000,
+            max_episode_steps=max_episode_steps,
             batch_size=64,
             tau=0.005,
             init_actor_lr=3e-4,
@@ -594,9 +593,9 @@ if __name__ == "__main__":
             actor_l2=0.0,
             critic_l2=0.0,
             name="sac",
-            gradient_updates_per_episode=100,
+            gradient_updates_per_episode=max_episode_steps,
             actor_delay=1,
-            target_delay=2,
+            target_delay=1,
         )
 
 
