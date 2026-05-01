@@ -566,8 +566,6 @@ def learn_standard_rd(
 
 
 if __name__ == "__main__":
-    max_episode_steps = 1000
-    num_of_episodes = 1000
     ReplayBuffer = ReplayBuffer(capacity=100000)
     train_env = panda_env(action_space_size=8,state_space_size=12,num_of_attack_points=1)
 
