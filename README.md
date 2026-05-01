@@ -60,6 +60,11 @@ mjpython x2.py(or cf2.py)
 <img width="1512" height="982" alt="Screenshot 2026-04-27 at 00 56 58" src="https://github.com/user-attachments/assets/ef7c8db7-731f-4656-916e-4b77f323ff91" />
 
 ---
-# To Do
-Implement control algorithms(MPC, RL) on more complex models.
+# franka emika panda mechanical arm
+### Run this command to train panda
+```sh
+mjpython train_rd_15states.py
+```
+<img width="1512" height="982" alt="Screenshot 2026-05-01 at 05 31 23" src="https://github.com/user-attachments/assets/580ab988-d77b-4a0f-ab38-d04e6ff1bac7" />
+
 
