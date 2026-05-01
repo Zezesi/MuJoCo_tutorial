@@ -21,7 +21,7 @@ import mujoco
 import mujoco.viewer
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-Ts=0.04
+Ts=0.01
 
 
 class panda_env:
@@ -370,6 +370,7 @@ def sac(
                 episode += 1
                 agent.save(save_dir)
             time_until_next_step = max(Ts,train_env.model.opt.timestep) - (time.time() - step_start)
+            print(train_env.model.opt.timestep)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
         if episode < num_of_episodes:
@@ -568,12 +569,12 @@ def learn_standard_rd(
 
 
 if __name__ == "__main__":
-    ReplayBuffer = ReplayBuffer(capacity=100000)
+    ReplayBuffer = ReplayBuffer(capacity=500000)
     train_env = panda_env(action_space_size=8,state_space_size=15,num_of_attack_points=1)
 
     with mujoco.viewer.launch_passive(train_env.model,train_env.data) as viewer:
         time.sleep(2)  # wait 2 seconds
-        max_episode_steps=500
+        max_episode_steps=1000
 
         sac(
             ReplayBuffer,

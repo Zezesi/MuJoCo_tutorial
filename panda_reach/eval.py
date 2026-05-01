@@ -15,7 +15,7 @@ import mujoco
 import mujoco.viewer
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-Ts=0.05
+Ts=0.01
 class panda_env:
     def __init__(self, action_space_size=8, state_space_size=15, num_of_attack_points=1):
         self.action_space_size = action_space_size
