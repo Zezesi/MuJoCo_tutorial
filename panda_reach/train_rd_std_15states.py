@@ -59,11 +59,11 @@ class panda_env:
     def step(self,action):
         self.data.ctrl=action
         mujoco.mj_step(self.model, self.data)
-        state = np.concatenate((self.data.site("gripper").xpos,self.data.qpos / 3.0718),axis=0)
+        state = np.concatenate((self.data.site("gripper").xpos, self.data.qpos / 3.0718), axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
-        reward=self.reward(action)
+        reward = self.reward(action)
         return state,reward
 
     def reset(self):
@@ -233,7 +233,7 @@ def sac(
     actor_l2=0.0,
     critic_l2=0.0,
     name="sac",
-    gradient_updates_per_episode=10,
+    steps_per_gradient_update=32,
     actor_delay=1,
     target_delay=2,
     **kwargs,
@@ -333,12 +333,24 @@ def sac(
 
             viewer.sync()
 
-
-            if (step+1) >= max_episode_steps:
-               done = 1
-               for i_ in range(gradient_updates_per_episode):
-
-                   learn_standard_rd(
+            if step % steps_per_gradient_update==0:
+               learn_standard(
+                    ReplayBuffer=ReplayBuffer,
+                    target_agent=target_agent,
+                    agent=agent,
+                    actor_optimizer=actor_optimizer,
+                    critic_optimizer=critic_optimizer,
+                    log_alpha_optimizer=log_alpha_optimizer,
+                    log_alpha=log_alpha,
+                    target_entropy=target_entropy,
+                    batch_size=batch_size,
+                    gamma=gamma,
+                    critic_clip=critic_clip,
+                    actor_clip=actor_clip,
+                    update_policy=step % actor_delay == 0,
+                    save_dir=save_dir,
+                )
+               learn_standard_rd(
                       ReplayBuffer=ReplayBuffer,
                       target_agent=target_agent,
                       agent=agent,
@@ -351,12 +363,16 @@ def sac(
                       gamma=gamma,
                       critic_clip=critic_clip,
                       actor_clip=actor_clip,
-                      update_policy=i_ % actor_delay == 0,
+                      update_policy=step % actor_delay == 0,
                       save_dir=save_dir,
                   )
-                   if i_%target_delay==0:
-                      utils.soft_update(target_agent.critic1, agent.critic1, tau)
-                      utils.soft_update(target_agent.critic2, agent.critic2, tau)
+            if step%target_delay==0:
+                    utils.soft_update(target_agent.critic1, agent.critic1, tau)
+                    utils.soft_update(target_agent.critic2, agent.critic2, tau)
+
+
+            if (step+1) >= max_episode_steps:
+               done = 1
 
             if done:
                 utils.hard_update(target_agent.critic1, agent.critic1)
@@ -369,6 +385,7 @@ def sac(
                 savemat(path2, df2)
                 episode += 1
                 agent.save(save_dir)
+
             time_until_next_step = train_env.model.opt.timestep - (time.time() - step_start)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
@@ -387,7 +404,7 @@ def learn_standard(
     log_alpha_optimizer,
     log_alpha,
     target_entropy,
-    batch_size=8,
+    batch_size=64,
     gamma=0.99,
     critic_clip=True,
     actor_clip=True,
@@ -483,7 +500,7 @@ def learn_standard_rd(
     log_alpha_optimizer,
     log_alpha,
     target_entropy,
-    batch_size=8,
+    batch_size=64,
     gamma=0.99,
     critic_clip=True,
     actor_clip=True,
@@ -571,7 +588,7 @@ if __name__ == "__main__":
     max_episode_steps = 500
     num_of_episodes = 100
     ReplayBuffer = ReplayBuffer(capacity=100000)
-    train_env = panda_env(action_space_size=8,state_space_size=15,num_of_attack_points=1)
+    train_env = panda_env(action_space_size=8,state_space_size=12,num_of_attack_points=1)
 
     with mujoco.viewer.launch_passive(train_env.model,train_env.data) as viewer:
         time.sleep(2)  # wait 2 seconds
@@ -583,7 +600,7 @@ if __name__ == "__main__":
             log_std_high=2,
             state_space_size=15,
             action_space_size=8,
-            num_of_episodes=1000,
+            num_of_episodes=10,
             max_episode_steps=1000,
             batch_size=64,
             tau=0.005,
@@ -596,7 +613,7 @@ if __name__ == "__main__":
             actor_l2=0.0,
             critic_l2=0.0,
             name="sac",
-            gradient_updates_per_episode=100,
+            steps_per_gradient_update=32,
             actor_delay=1,
             target_delay=2,
         )

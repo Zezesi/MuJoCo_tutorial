@@ -73,7 +73,7 @@ class panda_env:
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
-        done = 1
+        done = 0
         return state, done
 
 
@@ -171,10 +171,6 @@ def sac(
                      hidden_size=1024)
 
 
-    save_dir = utils.make_process_dirs(name,base_path="eval")
-    writer = tensorboardX.SummaryWriter(save_dir)
-    writer.add_hparams(locals(), {})
-    writer.close()  # very important, otherwise, error pops
 
     ###########
     ## SETUP ##
@@ -186,6 +182,10 @@ def sac(
     episode = 0
 
     while viewer.is_running() and episode < num_of_episodes:
+        save_dir = utils.make_process_dirs(name, base_path="eval")
+        writer = tensorboardX.SummaryWriter(save_dir)
+        writer.add_hparams(locals(), {})
+        writer.close()  # very important, otherwise, error pops
         ################
         ## PRINT INFO ##
         ################
@@ -222,21 +222,27 @@ def sac(
 
                 if (step + 1) >= max_episode_steps:
                     done = 1
-            if done:
-                df = {'reward': np.array(reward_record)}
-                savemat(path, df)
-                df1 = {'state': state_record}
-                savemat(path1, df1)
-                df2 = {'action': np.array(action_record)}
-                savemat(path2, df2)
-                episode += 1
-                continue
+                if done:
+                    df = {'reward': np.array(reward_record)}
+                    savemat(path, df)
+                    df1 = {'state': state_record}
+                    savemat(path1, df1)
+                    df2 = {'action': np.array(action_record)}
+                    savemat(path2, df2)
+                    episode += 1
+
+                time_until_next_step = eval_env.model.opt.timestep - (time.time() - step_start)
+                if time_until_next_step > 0:
+                    time.sleep(time_until_next_step)
+        if episode < num_of_episodes:
+           continue
+
 
 
 
 
 if __name__ == "__main__":
-    max_episode_steps = 5000
+    max_episode_steps = 1000
     num_of_episodes = 1
     eval_env = panda_env(action_space_size=8, state_space_size=15, num_of_attack_points=1)
 

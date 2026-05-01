@@ -24,7 +24,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class panda_env:
-    def __init__(self, action_space_size=8,state_space_size=15,num_of_attack_points=1):
+    def __init__(self, action_space_size=8,state_space_size=12,num_of_attack_points=1):
         self.action_space_size = action_space_size
         self.state_space_size=state_space_size
         self.attack_point=np.array([0.0,0.0,0.0])
@@ -59,7 +59,7 @@ class panda_env:
     def step(self,action):
         self.data.ctrl=action
         mujoco.mj_step(self.model, self.data)
-        state = np.concatenate((self.data.site("gripper").xpos,self.data.qpos / 3.0718),axis=0)
+        state = self.data.qpos / 3.0718
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
@@ -74,7 +74,7 @@ class panda_env:
             self.model.site(attack_point_name).pos = self.attack_point
         mujoco.mj_step(self.model, self.data)
         time.sleep(0.1) # make sure that it has enough time to reset in mujoco
-        state = np.concatenate((self.data.site("gripper").xpos, self.data.qpos / 3.0718), axis=0)
+        state=self.data.qpos/3.0718
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state=np.concatenate((self.model.site(attack_point_name).pos,state),axis=0)
@@ -137,7 +137,7 @@ class SACAgent:
         self,
         log_std_low=-2.0,
         log_std_high=20.0,
-        state_space_size=15,
+        state_space_size=12,
         action_space_size=8,
         actor_net_cls=nets.StochasticActor,
         critic_net_cls=nets.BigCritic,
@@ -218,7 +218,7 @@ def sac(
     train_env,
     log_std_low=-20,
     log_std_high=2,
-    state_space_size=15,
+    state_space_size=12,
     action_space_size=8,
     num_of_episodes=1000,
     max_episode_steps=500,
@@ -357,7 +357,6 @@ def sac(
                    if i_%target_delay==0:
                       utils.soft_update(target_agent.critic1, agent.critic1, tau)
                       utils.soft_update(target_agent.critic2, agent.critic2, tau)
-
             if done:
                 utils.hard_update(target_agent.critic1, agent.critic1)
                 utils.hard_update(target_agent.critic2, agent.critic2)
@@ -376,7 +375,6 @@ def sac(
            continue
 
 
-
 def learn_standard(
     save_dir,
     ReplayBuffer,
@@ -387,7 +385,7 @@ def learn_standard(
     log_alpha_optimizer,
     log_alpha,
     target_entropy,
-    batch_size=8,
+    batch_size=64,
     gamma=0.99,
     critic_clip=True,
     actor_clip=True,
@@ -483,7 +481,7 @@ def learn_standard_rd(
     log_alpha_optimizer,
     log_alpha,
     target_entropy,
-    batch_size=8,
+    batch_size=64,
     gamma=0.99,
     critic_clip=True,
     actor_clip=True,
@@ -568,10 +566,10 @@ def learn_standard_rd(
 
 
 if __name__ == "__main__":
-    max_episode_steps = 500
-    num_of_episodes = 100
+    max_episode_steps = 1000
+    num_of_episodes = 1000
     ReplayBuffer = ReplayBuffer(capacity=100000)
-    train_env = panda_env(action_space_size=8,state_space_size=15,num_of_attack_points=1)
+    train_env = panda_env(action_space_size=8,state_space_size=12,num_of_attack_points=1)
 
     with mujoco.viewer.launch_passive(train_env.model,train_env.data) as viewer:
         time.sleep(2)  # wait 2 seconds
@@ -581,7 +579,7 @@ if __name__ == "__main__":
             train_env,
             log_std_low=-20,
             log_std_high=2,
-            state_space_size=15,
+            state_space_size=12,
             action_space_size=8,
             num_of_episodes=1000,
             max_episode_steps=1000,
@@ -595,7 +593,7 @@ if __name__ == "__main__":
             critic_clip=True,
             actor_l2=0.0,
             critic_l2=0.0,
-            name="sac",
+            name="train",
             gradient_updates_per_episode=100,
             actor_delay=1,
             target_delay=2,
