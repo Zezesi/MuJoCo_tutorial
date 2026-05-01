@@ -47,6 +47,7 @@ mjpython x2.py(or cf2.py)
 
 ### skydio_x2
 <img width="1512" height="982" alt="Screenshot 2026-04-26 at 14 32 38" src="https://github.com/user-attachments/assets/5f1f73d1-b3f7-46b3-bf64-923a98aeaf63" />
+
 ### bitcraze_crazyflie_2
 <img width="1512" height="982" alt="Screenshot 2026-04-28 at 08 31 52" src="https://github.com/user-attachments/assets/27444989-c295-4aee-8d89-7df3c717c0d6" />
 
