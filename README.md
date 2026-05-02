@@ -64,7 +64,7 @@ mjpython x2.py(or cf2.py)
 # franka emika panda mechanical arm
 ### Run this command to train panda
 ```sh
-mjpython train_rd_15states.py
+mjpython train_rd.py
 ```
 <img width="1512" height="982" alt="Screenshot 2026-05-01 at 05 31 23" src="https://github.com/user-attachments/assets/580ab988-d77b-4a0f-ab38-d04e6ff1bac7" />
 ### To do
