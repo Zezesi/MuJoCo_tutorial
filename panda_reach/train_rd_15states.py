@@ -370,7 +370,6 @@ def sac(
                 episode += 1
                 agent.save(save_dir)
             time_until_next_step = max(Ts,train_env.model.opt.timestep) - (time.time() - step_start)
-            print(train_env.model.opt.timestep)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
         if episode < num_of_episodes:
