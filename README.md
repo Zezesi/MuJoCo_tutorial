@@ -62,6 +62,5 @@ mjpython x2.py(or cf2.py)
 
 ---
 # franka emika panda mechanical arm
-### Run this command to train panda
 
 
