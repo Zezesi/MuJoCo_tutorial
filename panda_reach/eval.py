@@ -17,65 +17,67 @@ import mujoco.viewer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 Ts=0.01
 class panda_env:
-    def __init__(self, action_space_size=8, state_space_size=15, num_of_attack_points=1):
+    def __init__(self, action_space_size=8,state_space_size=15,num_of_attack_points=1):
         self.action_space_size = action_space_size
-        self.state_space_size = state_space_size
-        self.attack_point = np.array([0.0, 0.0, 0.0])
-        self.num_of_attack_points = num_of_attack_points
+        self.state_space_size=state_space_size
+        self.attack_point=np.array([0.0,0.0,0.0])
+        self.num_of_attack_points=num_of_attack_points
         self.model = mujoco.MjModel.from_xml_path('franka_emika_panda/mjx_scene.xml')
         self.data = mujoco.MjData(self.model)
-
     def update_attack_point(self):
-        x = np.random.uniform(low=-0.2, high=0.2)
-        y = np.random.uniform(low=0.3, high=0.5)
-        z = np.random.uniform(low=0.2, high=0.6)
-        self.attack_point = np.array([x, y, z])
+        x=np.random.uniform(low=-0.2, high=0.2)
+        y=np.random.uniform(low=0.3, high=0.5)
+        z=np.random.uniform(low=0.2, high=0.6)
+        self.attack_point=np.array([x,y,z])
 
-    def action_post_processing(self, action):
+    def action_post_processing(self,action):
         action[0] = (action[0] - (-1)) * ((2.8973) - (-2.8973)) / ((1) - (-1)) + (-2.8973)
         action[1] = (action[1] - (-1)) * ((1.7628) - (-1.7628)) / ((1) - (-1)) + (-1.7628)
         action[2] = (action[2] - (-1)) * ((2.8973) - (-2.8973)) / ((1) - (-1)) + (-2.8973)
         action[3] = (action[3] - (-1)) * ((-0.0698) - (-3.0718)) / ((1) - (-1)) + (-3.0718)
         action[4] = (action[4] - (-1)) * ((2.8973) - (-2.8973)) / ((1) - (-1)) + (-2.8973)
         action[5] = (action[5] - (-1)) * ((3.7525) - (-0.0175)) / ((1) - (-1)) + (-0.0175)
-        action[6] = (action[6] - (-1)) * ((np.pi) - (-np.pi)) / ((1) - (-1)) + (-np.pi)
+        action[6] = (action[6] - (-1)) * ((2.8973) - (-2.8973)) / ((1) - (-1)) + (-2.8973)
         action[7] = (action[7] - (-1)) * ((0.04) - (0)) / ((1) - (-1)) + (0)
         return action
 
-    def reward(self, action):
-        curPos = self.data.site("gripper").xpos
-        tarPos = self.data.site("attack_point0").xpos
-        reward = np.array([-np.linalg.norm(curPos - tarPos)])
+    def reward(self,action):
+        curPos=self.data.site("gripper").xpos
+        tarPos=self.data.site("attack_point0").xpos
+        reward = np.array([-np.linalg.norm(curPos-tarPos)])
         if self.data.ncon > 0:
-            reward[0] = reward[0] - 1
+            reward[0]=reward[0]-1
         return reward
 
-    def step(self, action):
-        self.data.ctrl = action
+    def step(self,action):
+        self.data.ctrl=action
         mujoco.mj_step(self.model, self.data)
-        state = np.concatenate((self.data.site("gripper").xpos, self.data.qpos / 3.0718), axis=0)
+        gripper_xquat=np.zeros(4)
+        mujoco.mju_mat2Quat(gripper_xquat,self.data.site("gripper").xmat)
+        state = np.concatenate((self.data.site("gripper").xpos,gripper_xquat,self.data.qpos / 3.0718,self.data.qvel),axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
-        reward = self.reward(action)
-        return state, reward
+        reward=self.reward(action)
+        return state,reward
 
     def reset(self):
-        self.data.qpos = [-5.94958683e-17, 5.57178318e-03, -6.85235486e-06, -6.95284621e-02, -1.61440323e-04,
-                          -7.17258051e-03, -5.46813142e-06, 6.91022958e-07, -9.37611953e-08]
+        self.data.qpos=[-5.94958683e-17, 5.57178318e-03, -6.85235486e-06, -6.95284621e-02, -1.61440323e-04, -7.17258051e-03, -5.46813142e-06, 6.91022958e-07, -9.37611953e-08]
         for i_ in range(self.num_of_attack_points):
-            attack_point_name = f"attack_point{i_}"
+            attack_point_name=f"attack_point{i_}"
             self.update_attack_point()
             self.model.site(attack_point_name).pos = self.attack_point
         mujoco.mj_step(self.model, self.data)
-        time.sleep(0.1)  # make sure that it has enough time to reset in mujoco
-        state = np.concatenate((self.data.site("gripper").xpos, self.data.qpos / 3.0718), axis=0)
+        time.sleep(0.1) # make sure that it has enough time to reset in mujoco
+        gripper_xquat = np.zeros(4)
+        mujoco.mju_mat2Quat(gripper_xquat, self.data.site("gripper").xmat)
+        state = np.concatenate((self.data.site("gripper").xpos,gripper_xquat,self.data.qpos / 3.0718,self.data.qvel),axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
-            state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
-        done = 0
-        return state, done
-
+            state=np.concatenate((self.model.site(attack_point_name).pos,state),axis=0)
+        done=0
+        action=np.array([-5.94958683e-17, 5.57178318e-03, -6.85235486e-06, -6.95284621e-02, -1.61440323e-04, -7.17258051e-03, -5.46813142e-06, 6.91022958e-07, -9.37611953e-08])
+        return state,action,done
 
 class SACAgent:
     def __init__(
@@ -159,7 +161,8 @@ def sac(
         num_of_episodes=1,
         max_episode_steps=5000,
         name="sac",
-        hidden_size=1024
+        hidden_size=1024,
+        steps_per_action_update=100
 ):
     agent = SACAgent(log_std_low=log_std_low,
                      log_std_high=log_std_high,
@@ -174,7 +177,7 @@ def sac(
     ###########
     ## SETUP ##
     ###########
-    agent.load(path='train/sac_199')
+    agent.load(path='train/sac_130')
     agent.to(device)
     agent.eval()
 
@@ -201,13 +204,14 @@ def sac(
         ## TRAINING LOOP ##
         ###################
         with torch.no_grad():
-            state, done = eval_env.reset()
+            state, action,done = eval_env.reset()
             steps_iter = range(max_episode_steps)
             steps_iter = tqdm.tqdm(steps_iter)
             for step in steps_iter:
                 step_start = time.time()
-                action = agent.sample_action(state)
-                action = eval_env.action_post_processing(action)
+                if step % steps_per_action_update==0:
+                   action = agent.sample_action(state)
+                   action = eval_env.action_post_processing(action)
                 next_state, reward = eval_env.step(action)
                 reward_record.append(reward.item())
                 state_record.append(next_state)
@@ -241,9 +245,7 @@ def sac(
 
 
 if __name__ == "__main__":
-    max_episode_steps = 1000
-    num_of_episodes = 10
-    eval_env = panda_env(action_space_size=8, state_space_size=15, num_of_attack_points=1)
+    eval_env = panda_env(action_space_size=8, state_space_size=28, num_of_attack_points=1)
 
     with mujoco.viewer.launch_passive(eval_env.model, eval_env.data) as viewer:
         time.sleep(2)  # wait 2 seconds
@@ -253,7 +255,8 @@ if __name__ == "__main__":
             log_std_low=-20,
             log_std_high=2,
             num_of_episodes=1,
-            max_episode_steps=5000,
+            max_episode_steps=50000,
             name="sac",
-            hidden_size=1024
+            hidden_size=256,
+            steps_per_action_update=100
         )
