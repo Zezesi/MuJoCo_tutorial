@@ -1,0 +1,202 @@
+
+import os
+import tensorboardX
+import torch
+import tqdm
+
+
+import numpy as np
+
+import utils
+import nets
+from scipy.io import savemat
+import time
+import mujoco
+import mujoco.viewer
+import train_after_28states
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+Ts=0.01
+
+
+class SACAgent:
+    def __init__(
+        self,
+        state_space_size=15,
+        action_space_size=8,
+        log_std_low=-20,
+        log_std_high=2,
+        actor_net_cls=nets.StochasticActor,
+        critic_net_cls=nets.BigCritic,
+        hidden_size=1024,
+    ):
+        self.actor = actor_net_cls(
+            state_space_size=state_space_size,
+            action_space_size=action_space_size,
+            log_std_low=log_std_low,
+            log_std_high=log_std_high,
+            hidden_size=hidden_size,
+        )
+        self.critic1 = critic_net_cls(state_space_size=state_space_size, action_space_size=action_space_size, hidden_size=hidden_size)
+        self.critic2 = critic_net_cls(state_space_size=state_space_size, action_space_size=action_space_size, hidden_size=hidden_size)
+
+    def to(self, device):
+        self.actor = self.actor.to(device)
+        self.critic1 = self.critic1.to(device)
+        self.critic2 = self.critic2.to(device)
+
+    def eval(self):
+        self.actor.eval()
+        self.critic1.eval()
+        self.critic2.eval()
+
+    def train(self):
+        self.actor.train()
+        self.critic1.train()
+        self.critic2.train()
+
+    def save(self, path):
+        actor_path = os.path.join(path, "actor.pt")
+        critic1_path = os.path.join(path, "critic1.pt")
+        critic2_path = os.path.join(path, "critic2.pt")
+        torch.save(self.actor.state_dict(), actor_path)
+        torch.save(self.critic1.state_dict(), critic1_path)
+        torch.save(self.critic2.state_dict(), critic2_path)
+        torch.save(self.actor.state_dict(), "actor.pt")
+        torch.save(self.critic1.state_dict(), "critic1.pt")
+        torch.save(self.critic2.state_dict(), "critic2.pt")
+
+    def load(self, path):
+        actor_path = os.path.join(path, "actor.pt")
+        critic1_path = os.path.join(path, "critic1.pt")
+        critic2_path = os.path.join(path, "critic2.pt")
+        self.actor.load_state_dict(torch.load(actor_path))
+        self.critic1.load_state_dict(torch.load(critic1_path))
+        self.critic2.load_state_dict(torch.load(critic2_path))
+
+
+    def sample_action(self, state, from_cpu=True):
+        if from_cpu:
+            state = self.process_state(state)
+        self.actor.eval()
+        with torch.no_grad():
+            act_dist = self.actor.forward(state)
+            act = act_dist.sample()
+        self.actor.train()
+        if from_cpu:
+            act = self.process_act(act)
+        return act
+
+    def process_state(self, state):
+        return torch.from_numpy(np.expand_dims(state, 0).astype(np.float32)).to(utils.device)
+
+    def process_act(self, act):
+        return np.squeeze(act.clamp(-1.0, 1.0).cpu().numpy(), 0)
+
+
+def sac(
+        env_env,
+        log_std_low=-20,
+        log_std_high=2,
+        num_of_episodes=1,
+        max_episode_steps=5000,
+        name="sac",
+        hidden_size=1024,
+        steps_per_action_update=100
+):
+    agent = SACAgent(log_std_low=log_std_low,
+                     log_std_high=log_std_high,
+                     state_space_size=eval_env.state_space_size,
+                     action_space_size=eval_env.action_space_size,
+                     actor_net_cls=nets.StochasticActor,
+                     critic_net_cls=nets.BigCritic,
+                     hidden_size=hidden_size)
+
+
+
+    ###########
+    ## SETUP ##
+    ###########
+    agent.load(path='train/sac_130')
+    agent.to(device)
+    agent.eval()
+
+    episode = 0
+
+    while viewer.is_running() and episode < num_of_episodes:
+        save_dir = utils.make_process_dirs(name, base_path="eval")
+        writer = tensorboardX.SummaryWriter(save_dir)
+        writer.add_hparams(locals(), {})
+        writer.close()  # very important, otherwise, error pops
+        ################
+        ## PRINT INFO ##
+        ################
+        print(f"No.{episode + 1} Episode: Evaluating Deep Control Soft Actor Critic")
+
+        path = os.path.join(save_dir, f'reward_ep{episode}.mat')
+        reward_record = []
+        path1 = os.path.join(save_dir, f'state_ep{episode}.mat')
+        state_record = []
+        path2 = os.path.join(save_dir, f'action_ep{episode}.mat')
+        action_record = [[]]
+
+        ###################
+        ## TRAINING LOOP ##
+        ###################
+        with torch.no_grad():
+            state, done = eval_env.reset()
+            action=agent.sample_action(state)
+            steps_iter = range(max_episode_steps)
+            steps_iter = tqdm.tqdm(steps_iter)
+            for step in steps_iter:
+                step_start = time.time()
+                if step % steps_per_action_update==0:
+                   action = agent.sample_action(state)
+                next_state, reward = eval_env.step(action)
+                reward_record.append(reward.item())
+                state_record.append(next_state)
+                action_record = np.concatenate((action_record, [action]), axis=1)
+                state = next_state
+
+                with viewer.lock():
+                    viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = int(eval_env.data.time % 2)
+
+                viewer.sync()
+
+                if (step + 1) >= max_episode_steps:
+                    done = 1
+                if done:
+                    df = {'reward': np.array(reward_record)}
+                    savemat(path, df)
+                    df1 = {'state': state_record}
+                    savemat(path1, df1)
+                    df2 = {'action': np.array(action_record)}
+                    savemat(path2, df2)
+                    episode += 1
+
+                time_until_next_step = max(Ts,eval_env.model.opt.timestep) - (time.time() - step_start)
+                if time_until_next_step > 0:
+                    time.sleep(time_until_next_step)
+        if episode < num_of_episodes:
+           continue
+
+
+
+
+
+if __name__ == "__main__":
+    eval_env = train_after_28states.panda_env(action_space_size=8, state_space_size=28, num_of_attack_points=1)
+
+    with mujoco.viewer.launch_passive(eval_env.model, eval_env.data) as viewer:
+        time.sleep(2)  # wait 2 seconds
+
+        sac(
+            eval_env,
+            log_std_low=-20,
+            log_std_high=2,
+            num_of_episodes=1,
+            max_episode_steps=50000,
+            name="sac",
+            hidden_size=256,
+            steps_per_action_update=100
+        )
