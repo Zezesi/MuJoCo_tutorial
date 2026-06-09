@@ -25,7 +25,7 @@ Ts=0.01
 
 
 class panda_env:
-    def __init__(self, action_space_size=8,state_space_size=15,num_of_attack_points=1):
+    def __init__(self, action_space_size=8,state_space_size=22,num_of_attack_points=1):
         self.action_space_size = action_space_size
         self.state_space_size=state_space_size
         self.attack_point=np.array([0.0,0.0,0.0])
@@ -64,7 +64,7 @@ class panda_env:
         curPos = self.data.site("gripper").xpos
         tarPos = self.data.site("attack_point0").xpos
         dist = np.array([np.linalg.norm(curPos - tarPos)])
-        state = np.concatenate((dist,self.data.qpos / 3.0718,self.data.qvel),axis=0)
+        state = np.concatenate((dist,self.data.qpos ,self.data.qvel),axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
@@ -82,7 +82,7 @@ class panda_env:
         curPos = self.data.site("gripper").xpos
         tarPos = self.data.site("attack_point0").xpos
         dist = np.array([np.linalg.norm(curPos - tarPos)])
-        state = np.concatenate((dist,self.data.qpos / 3.0718,self.data.qvel),axis=0)
+        state = np.concatenate((dist,self.data.qpos ,self.data.qvel),axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state=np.concatenate((self.model.site(attack_point_name).pos,state),axis=0)
@@ -387,8 +387,8 @@ if __name__ == "__main__":
             gradient_updates_per_episode=1000,
             actor_delay=1,
             target_delay=1,
-            hidden_size=256,
-            steps_per_action_update=1
+            hidden_size=1024,
+            steps_per_action_update=10
         )
 
 

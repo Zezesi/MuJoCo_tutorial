@@ -13,7 +13,7 @@ from scipy.io import savemat
 import time
 import mujoco
 import mujoco.viewer
-import train_after_28states
+import train_after_18states
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 Ts=0.01
@@ -117,7 +117,7 @@ def sac(
     ###########
     ## SETUP ##
     ###########
-    agent.load(path='train/sac_130')
+    agent.load(path='panda_training/train12/sac_250')
     agent.to(device)
     agent.eval()
 
@@ -185,7 +185,7 @@ def sac(
 
 
 if __name__ == "__main__":
-    eval_env = train_after_28states.panda_env(action_space_size=8, state_space_size=28, num_of_attack_points=1)
+    eval_env = train_after_18states.panda_env(action_space_size=8, state_space_size=18, num_of_attack_points=1)
 
     with mujoco.viewer.launch_passive(eval_env.model, eval_env.data) as viewer:
         time.sleep(2)  # wait 2 seconds
@@ -195,8 +195,8 @@ if __name__ == "__main__":
             log_std_low=-20,
             log_std_high=2,
             num_of_episodes=1,
-            max_episode_steps=50000,
+            max_episode_steps=5000,
             name="sac",
-            hidden_size=256,
-            steps_per_action_update=100
+            hidden_size=1024,
+            steps_per_action_update=1
         )

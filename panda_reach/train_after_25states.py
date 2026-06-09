@@ -68,7 +68,7 @@ class panda_env:
         mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, gripper_id, gripper_xvel, 0)
         gripper_xvelp = gripper_xvel[3:]  # Linear velocity
         gripper_xvelr = gripper_xvel[:3]  # Angular velocity
-        state = np.concatenate((self.data.site("gripper").xpos,gripper_xquat,gripper_xvelp,gripper_xvelr,self.data.qpos / 3.0718),axis=0)
+        state = np.concatenate((self.data.site("gripper").xpos,gripper_xquat,gripper_xvelp,gripper_xvelr,self.data.qpos ),axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
@@ -90,7 +90,7 @@ class panda_env:
         mujoco.mj_objectVelocity(self.model, self.data, mujoco.mjtObj.mjOBJ_SITE, gripper_id, gripper_xvel, 0)
         gripper_xvelp = gripper_xvel[3:]  # Linear velocity
         gripper_xvelr = gripper_xvel[:3]  # Angular velocity
-        state = np.concatenate((self.data.site("gripper").xpos, gripper_xquat, gripper_xvelp, gripper_xvelr,self.data.qpos / 3.0718), axis=0)
+        state = np.concatenate((self.data.site("gripper").xpos, gripper_xquat, gripper_xvelp, gripper_xvelr,self.data.qpos), axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state=np.concatenate((self.model.site(attack_point_name).pos,state),axis=0)

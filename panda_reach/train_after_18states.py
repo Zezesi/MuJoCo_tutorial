@@ -3,6 +3,7 @@ import copy
 import math
 import os
 from itertools import chain
+import random
 
 import tensorboardX
 import torch
@@ -18,20 +19,20 @@ from scipy.io import savemat
 import time
 import mujoco
 import mujoco.viewer
-import random
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 Ts=0.01
 
 
 class panda_env:
-    def __init__(self, action_space_size=8,state_space_size=15,num_of_attack_points=1):
+    def __init__(self, action_space_size=8,state_space_size=22,num_of_attack_points=1):
         self.action_space_size = action_space_size
         self.state_space_size=state_space_size
         self.attack_point=np.array([0.0,0.0,0.0])
         self.num_of_attack_points=num_of_attack_points
         self.model = mujoco.MjModel.from_xml_path('franka_emika_panda/mjx_scene.xml')
         self.data = mujoco.MjData(self.model)
+        self.last_gripper_qpos=self.data.site("gripper").xpos.copy()
     def update_attack_point(self):
         x=np.random.uniform(low=-0.2, high=0.2)
         y=np.random.uniform(low=0.3, high=0.5)
@@ -52,44 +53,40 @@ class panda_env:
     def reward(self,action):
         curPos=self.data.site("gripper").xpos
         tarPos=self.data.site("attack_point0").xpos
-        reward = np.array([-np.linalg.norm(curPos-tarPos)])
+        reward1 = np.array([-np.linalg.norm(curPos-tarPos)])
+        reward2 = np.array([-np.linalg.norm(curPos-self.last_gripper_qpos)])
+        reward = np.array(reward1+reward2)
         if self.data.ncon > 0:
-            reward[0]=reward[0]-1.0
+            reward[0]=reward[0]-1
         return reward
 
     def step(self,action):
         processed_action = self.action_post_processing(action.copy())
         self.data.ctrl = processed_action
         mujoco.mj_step(self.model, self.data)
-        gripper_xquat = np.zeros(4)
-        mujoco.mju_mat2Quat(gripper_xquat, self.data.site("gripper").xmat)
-        state = np.concatenate((self.data.site("gripper").xpos, gripper_xquat, self.data.qpos, self.data.qvel),axis=0)
+        state = np.concatenate((self.data.site("gripper").xpos,self.last_gripper_qpos,self.data.qpos),axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
-        reward = self.reward(action)
-        return state, reward
+        reward=self.reward(action)
+        self.last_gripper_qpos = self.data.site("gripper").xpos.copy()
+        return state,reward
 
     def reset(self):
-        self.data.qpos = [-5.94958683e-17, 5.57178318e-03, -6.85235486e-06, -6.95284621e-02, -1.61440323e-04,
-                          -7.17258051e-03, -5.46813142e-06, 6.91022958e-07, -9.37611953e-08]
+        self.data.qpos=[-5.94958683e-17, 5.57178318e-03, -6.85235486e-06, -6.95284621e-02, -1.61440323e-04, -7.17258051e-03, -5.46813142e-06, 6.91022958e-07, -9.37611953e-08]
         for i_ in range(self.num_of_attack_points):
-            attack_point_name = f"attack_point{i_}"
+            attack_point_name=f"attack_point{i_}"
             self.update_attack_point()
             self.model.site(attack_point_name).pos = self.attack_point
         mujoco.mj_step(self.model, self.data)
-        time.sleep(0.1)  # make sure that it has enough time to reset in mujoco
-        gripper_xquat = np.zeros(4)
-        mujoco.mju_mat2Quat(gripper_xquat, self.data.site("gripper").xmat)
-        state = np.concatenate((self.data.site("gripper").xpos, gripper_xquat, self.data.qpos, self.data.qvel),axis=0)
+        time.sleep(0.1) # make sure that it has enough time to reset in mujoco
+        self.last_gripper_qpos = self.data.site("gripper").xpos.copy()
+        state = np.concatenate((self.data.site("gripper").xpos, self.last_gripper_qpos, self.data.qpos),axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
-            state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
-        done = 0
-        return state, done
-
-
-
+            state=np.concatenate((self.model.site(attack_point_name).pos,state),axis=0)
+        done=0
+        return state,done
 
 class SACAgent:
     def __init__(
@@ -179,7 +176,7 @@ def sac(
     log_std_high=2,
     num_of_episodes=1000,
     max_episode_steps=500,
-    batch_size=64,
+    batch_size=256,
     tau=0.005,
     init_actor_lr=3e-4,
     init_critic_lr=3e-4,
@@ -190,7 +187,7 @@ def sac(
     actor_l2=0.0,
     critic_l2=0.0,
     name="sac",
-    steps_per_gradient_update=32,
+    gradient_updates_per_episode=10,
     actor_delay=1,
     target_delay=2,
     hidden_size=1024,
@@ -272,13 +269,13 @@ def sac(
         ###################
         ## TRAINING LOOP ##
         ###################
-        state, done = train_env.reset()
+        state,done = train_env.reset()
         action=agent.sample_action(state)
         steps_iter = range(max_episode_steps)
         steps_iter = tqdm.tqdm(steps_iter)
         for step in steps_iter:
             step_start = time.time()
-            if step % steps_per_action_update == 0:
+            if step % steps_per_action_update==0:
                 action = agent.sample_action(state)
             next_state, reward = train_env.step(action)
             reward_record.append(reward.item())
@@ -293,47 +290,48 @@ def sac(
 
             viewer.sync()
 
-            if step % steps_per_gradient_update==0:
-               tasks=[
-               lambda:utils.learn_standard(
-                    save_dir=save_dir,
-                    ReplayBuffer=ReplayBuffer,
-                    target_agent=target_agent,
-                    agent=agent,
-                    actor_optimizer=actor_optimizer,
-                    critic_optimizer=critic_optimizer,
-                    log_alpha_optimizer=log_alpha_optimizer,
-                    log_alpha=log_alpha,
-                    target_entropy=target_entropy,
-                    batch_size=batch_size,
-                    gamma=gamma,
-                    critic_clip=critic_clip,
-                    actor_clip=actor_clip,
-                    update_policy=step % actor_delay == 0
-                ),
-               lambda:utils.learn_standard_rd(
-                      save_dir=save_dir,
-                      ReplayBuffer=ReplayBuffer,
-                      target_agent=target_agent,
-                      agent=agent,
-                      actor_optimizer=actor_optimizer,
-                      critic_optimizer=critic_optimizer,
-                      log_alpha_optimizer=log_alpha_optimizer,
-                      log_alpha=log_alpha,
-                      target_entropy=target_entropy,
-                      batch_size=batch_size,
-                      gamma=gamma,
-                      critic_clip=critic_clip,
-                      actor_clip=actor_clip,
-                      update_policy=step % actor_delay == 0,
-                  )]
-               random.choice(tasks)()
-               if step % target_delay == 0:
-                   utils.soft_update(target_agent.critic1, agent.critic1, tau)
-                   utils.soft_update(target_agent.critic2, agent.critic2, tau)
 
             if (step+1) >= max_episode_steps:
                done = 1
+               for i_ in range(gradient_updates_per_episode):
+
+                   tasks = [
+                       lambda: utils.learn_standard(
+                           save_dir=save_dir,
+                           ReplayBuffer=ReplayBuffer,
+                           target_agent=target_agent,
+                           agent=agent,
+                           actor_optimizer=actor_optimizer,
+                           critic_optimizer=critic_optimizer,
+                           log_alpha_optimizer=log_alpha_optimizer,
+                           log_alpha=log_alpha,
+                           target_entropy=target_entropy,
+                           batch_size=batch_size,
+                           gamma=gamma,
+                           critic_clip=critic_clip,
+                           actor_clip=actor_clip,
+                           update_policy=i_ % actor_delay == 0
+                       ),
+                       lambda: utils.learn_standard_rd(
+                           save_dir=save_dir,
+                           ReplayBuffer=ReplayBuffer,
+                           target_agent=target_agent,
+                           agent=agent,
+                           actor_optimizer=actor_optimizer,
+                           critic_optimizer=critic_optimizer,
+                           log_alpha_optimizer=log_alpha_optimizer,
+                           log_alpha=log_alpha,
+                           target_entropy=target_entropy,
+                           batch_size=batch_size,
+                           gamma=gamma,
+                           critic_clip=critic_clip,
+                           actor_clip=actor_clip,
+                           update_policy=i_ % actor_delay == 0,
+                       )]
+                   random.choice(tasks)()
+                   if i_ % target_delay == 0:
+                       utils.soft_update(target_agent.critic1, agent.critic1, tau)
+                       utils.soft_update(target_agent.critic2, agent.critic2, tau)
 
             if done:
                 ReplayBuffer.renew()
@@ -347,7 +345,6 @@ def sac(
                 savemat(path2, df2)
                 episode += 1
                 agent.save(save_dir)
-
             time_until_next_step = max(Ts,train_env.model.opt.timestep) - (time.time() - step_start)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
@@ -362,14 +359,11 @@ def sac(
 
 if __name__ == "__main__":
     max_episode_steps = 1000
-    ReplayBuffer = utils.Episodic_ReplayBuffer(capacity=500, max_episode_steps=max_episode_steps)
-    train_env = panda_env(action_space_size=8,state_space_size=28,num_of_attack_points=1)
+    ReplayBuffer = utils.Episodic_ReplayBuffer(capacity=500,max_episode_steps=max_episode_steps)
+    train_env = panda_env(action_space_size=8,state_space_size=18,num_of_attack_points=1)
 
     with mujoco.viewer.launch_passive(train_env.model,train_env.data) as viewer:
         time.sleep(2)  # wait 2 seconds
-        steps_per_gradient_update=1
-        actor_delay=steps_per_gradient_update
-        target_delay=steps_per_gradient_update
 
         sac(
             ReplayBuffer,
@@ -378,7 +372,7 @@ if __name__ == "__main__":
             log_std_high=2,
             num_of_episodes=1000,
             max_episode_steps=max_episode_steps,
-            batch_size=64,
+            batch_size=256,
             tau=0.005,
             init_actor_lr=3e-4,
             init_critic_lr=3e-4,
@@ -389,11 +383,11 @@ if __name__ == "__main__":
             actor_l2=0.0,
             critic_l2=0.0,
             name="sac",
-            steps_per_gradient_update=steps_per_gradient_update,
-            actor_delay=actor_delay,
-            target_delay=target_delay,
-            hidden_size=256,
-            steps_per_action_update=100
+            gradient_updates_per_episode=1000,
+            actor_delay=1,
+            target_delay=1,
+            hidden_size=1024,
+            steps_per_action_update=10
         )
 
 

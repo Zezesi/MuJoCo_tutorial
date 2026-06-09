@@ -61,7 +61,7 @@ class panda_env:
         processed_action = self.action_post_processing(action.copy())
         self.data.ctrl = processed_action
         mujoco.mj_step(self.model, self.data)
-        state = self.data.qpos / 3.0718
+        state = self.data.qpos
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
@@ -76,7 +76,7 @@ class panda_env:
             self.model.site(attack_point_name).pos = self.attack_point
         mujoco.mj_step(self.model, self.data)
         time.sleep(0.1) # make sure that it has enough time to reset in mujoco
-        state=self.data.qpos/3.0718
+        state=self.data.qpos
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state=np.concatenate((self.model.site(attack_point_name).pos,state),axis=0)

@@ -52,7 +52,27 @@ class panda_env:
     def reward(self,action):
         curPos=self.data.site("gripper").xpos
         tarPos=self.data.site("attack_point0").xpos
-        reward = np.array([-np.linalg.norm(curPos-tarPos)])
+
+        # it works
+        '''
+        reward=np.array([-np.linalg.norm(curPos-tarPos)])
+        '''
+        '''
+        # it doesn't work
+        distance = np.linalg.norm(curPos-tarPos)
+        r1=np.tanh(distance/0.1)**2
+        r2=np.tanh(np.linalg.norm(self.data.qvel,ord=1)/2)**2
+        reward=np.array([(1-r1)*(-r2)+r1*-r1])
+        '''
+        '''
+        # it works
+        distance = np.linalg.norm(curPos - tarPos)
+        L1_norm_qvel = np.linalg.norm(self.data.qvel, ord=1)
+        reward = np.array([-distance+0.01*-L1_norm_qvel])
+        '''
+        distance = np.linalg.norm(curPos - tarPos)
+        L1_norm_qvel = np.linalg.norm(self.data.qvel, ord=1)
+        reward = np.array([-distance + 0.1 *(1-distance)* -L1_norm_qvel])
         if self.data.ncon > 0:
             reward[0]=reward[0]-1
         return reward
@@ -63,7 +83,7 @@ class panda_env:
         mujoco.mj_step(self.model, self.data)
         gripper_xquat=np.zeros(4)
         mujoco.mju_mat2Quat(gripper_xquat,self.data.site("gripper").xmat)
-        state = np.concatenate((self.data.site("gripper").xpos,gripper_xquat,self.data.qpos / 3.0718,self.data.qvel),axis=0)
+        state = np.concatenate((self.data.site("gripper").xpos,gripper_xquat,self.data.qpos,self.data.qvel),axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state = np.concatenate((self.model.site(attack_point_name).pos, state), axis=0)
@@ -80,7 +100,7 @@ class panda_env:
         time.sleep(0.1) # make sure that it has enough time to reset in mujoco
         gripper_xquat = np.zeros(4)
         mujoco.mju_mat2Quat(gripper_xquat, self.data.site("gripper").xmat)
-        state = np.concatenate((self.data.site("gripper").xpos,gripper_xquat,self.data.qpos / 3.0718,self.data.qvel),axis=0)
+        state = np.concatenate((self.data.site("gripper").xpos,gripper_xquat,self.data.qpos,self.data.qvel),axis=0)
         for i_ in range(self.num_of_attack_points):
             attack_point_name = f"attack_point{i_}"
             state=np.concatenate((self.model.site(attack_point_name).pos,state),axis=0)
@@ -371,7 +391,7 @@ if __name__ == "__main__":
             log_std_high=2,
             num_of_episodes=1000,
             max_episode_steps=max_episode_steps,
-            batch_size=64,
+            batch_size=256,
             tau=0.005,
             init_actor_lr=3e-4,
             init_critic_lr=3e-4,
@@ -385,8 +405,8 @@ if __name__ == "__main__":
             gradient_updates_per_episode=1000,
             actor_delay=1,
             target_delay=1,
-            hidden_size=256,
-            steps_per_action_update=1
+            hidden_size=1024,
+            steps_per_action_update=10
         )
 
 
